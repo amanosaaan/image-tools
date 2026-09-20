@@ -240,7 +240,10 @@
   .ic { width: 18px; height: 18px; flex: none; }
   .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
   .grow { flex: 1; }
-  .fname { font-size: 0.8rem; color: var(--sub); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fname-wrap { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--sub); white-space: nowrap; }
+  .fname-wrap .fext { color: var(--sub); }
+  input.fname { width: 190px; max-width: 46vw; background: var(--panel); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 7px; font-size: 0.85rem; font-weight: 600; font-family: inherit; }
+  input.fname:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
   .zoompct { min-width: 3.2em; text-align: center; font-size: 0.8rem; color: var(--sub); }
   .ink-toolctl { font-size: 0.82rem; }
   .ink-toolctl .tname { font-weight: 600; min-width: 3.5em; }
@@ -789,7 +792,7 @@
       <button type="button" class="ib" id="seZoomIn" title="拡大 (+)"><svg class="ic"><use href="#i-zoom-in"/></svg></button>
       <button type="button" class="ib" id="seFit" title="全体を表示 (5)"><svg class="ic"><use href="#i-maximize"/></svg></button>
       <span class="grow"></span>
-      <strong id="seName" class="fname"></strong>
+      <label class="fname-wrap" title="ファイル名です。ここで変えられます(保存するときの名前になります)">名前 <input type="text" id="seName" class="fname" spellcheck="false" maxlength="100" placeholder="ファイル名"><span class="fext">.svg</span></label>
     </div>
 
     <!-- ツール設定バー(選んだツールに合わせて内容が変わる) -->
@@ -3165,7 +3168,7 @@ function buildZip(files) {
       $('seGapColor').value = dominantFill();
       sel = new Set(); undoStack = []; redoStack = []; skel = null; smoothing = null; pen = null; free = null; conn.a = null; connCache = null; docRev++;
       $('seWork').hidden = false; $('seSkelPanel').hidden = true; $('seSmoothPanel').hidden = true; $('seMain').hidden = false;
-      $('seName').textContent = doc.name;
+      $('seName').value = doc.name;
       $('tab-se').classList.add('loaded');
       window.scrollTo(0, 0);
       // 描画ツールの初期値: 太さ=図の大きさに合わせた目安、色=一番暗い図形の色
@@ -3320,7 +3323,7 @@ function buildZip(files) {
     if (saveURL) URL.revokeObjectURL(saveURL);
     saveURL = URL.createObjectURL(new Blob([exportSvg()], { type: 'image/svg+xml' }));
     $('seSave').href = saveURL;
-    $('seSave').download = doc.name + '_edit.svg';
+    $('seSave').download = doc.name + (doc.renamed ? '' : '_edit') + '.svg';
     refreshPalette();
     refreshScaleUI(has, busy);
   }
@@ -3465,6 +3468,16 @@ function buildZip(files) {
     snapshot(); doc.els = doc.els.filter((e) => !sel.has(e.id)); sel.clear(); commit(); setStatus('削除しました。');
   }
   $('seDel').addEventListener('click', deleteSel);
+  // ファイル名の変更(使えない文字は「_」にする)
+  const cleanFileName = (v) => String(v).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/^\s+|[\s.]+$/g, '').slice(0, 100);
+  $('seName').addEventListener('input', () => {
+    if (!doc) return;
+    const v = cleanFileName($('seName').value);
+    if (v) { doc.name = v; doc.renamed = true; refreshUI(); }
+  });
+  $('seName').addEventListener('change', () => { if (doc) $('seName').value = doc.name; }); // 空欄などは、直前の名前に戻す
+  $('seName').addEventListener('keydown', (ev) => { ev.stopPropagation(); if (ev.key === 'Enter') $('seName').blur(); });
+
   // 右パネル「選んだ図形」: 色・太さは、変更した時点で反映する
   $('seColor').addEventListener('change', () => {
     if (!sel.size || skel || smoothing) return;
@@ -5068,7 +5081,7 @@ function buildZip(files) {
       const c = document.createElement('canvas'); c.width = w; c.height = h;
       c.getContext('2d').drawImage(img, 0, 0, w, h);
       const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${doc.name}_edit_x${s}.png`;
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${doc.name}${doc.renamed ? '' : '_edit'}_x${s}.png`;
       document.body.appendChild(a); a.click(); a.remove();
     } catch (e) { setStatus('PNGの書き出しに失敗しました: ' + e.message, 'err'); }
     finally { URL.revokeObjectURL(url); }
