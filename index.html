@@ -313,6 +313,10 @@
   input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%; background: var(--accent); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); }
   input[type=range]:hover::-webkit-slider-thumb { background: var(--accent-hover); }
   input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: #465066; }
+  /* 初期位置の目印(トラック上の白い縦線)。つまみの中心が通る位置に合わせている */
+  input[type=range][data-def] { --d: calc(var(--p) * 100% + (0.5 - var(--p)) * 22px); }
+  input[type=range][data-def]::-webkit-slider-runnable-track { background: linear-gradient(to right, #465066 calc(var(--d) - 1.5px), #e8ecf6 calc(var(--d) - 1.5px), #e8ecf6 calc(var(--d) + 1.5px), #465066 calc(var(--d) + 1.5px)); }
+  input[type=range][data-def]::-moz-range-track { background: linear-gradient(to right, #465066 calc(var(--d) - 1.5px), #e8ecf6 calc(var(--d) - 1.5px), #e8ecf6 calc(var(--d) + 1.5px), #465066 calc(var(--d) + 1.5px)); }
   input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 3px solid #fff; }
   .range-row output { min-width: 2.6em; text-align: center; background: #232733; border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; color: var(--text); font-variant-numeric: tabular-nums; }
   @media (max-width: 900px) {
@@ -5085,6 +5089,26 @@ function buildZip(files) {
       document.body.appendChild(a); a.click(); a.remove();
     } catch (e) { setStatus('PNGの書き出しに失敗しました: ' + e.message, 'err'); }
     finally { URL.revokeObjectURL(url); }
+  });
+})();
+</script>
+
+<script>
+/* ---- スライダー共通: 初期位置の目印と、ダブルクリックで初期値に戻す ---- */
+(function () {
+  document.querySelectorAll('input[type=range]').forEach((r) => {
+    const min = parseFloat(r.min || 0), max = parseFloat(r.max || 100), def = r.defaultValue;
+    if (!(max > min) || def === '') return;
+    r.dataset.def = def;
+    r.style.setProperty('--p', String((parseFloat(def) - min) / (max - min)));
+    const out = r.parentElement && r.parentElement.querySelector('output');
+    r.title = '白い線が、初期の位置です(初期値: ' + def + ')。ダブルクリックで初期値に戻ります。';
+    r.addEventListener('dblclick', () => {
+      r.value = def;
+      r.dispatchEvent(new Event('input', { bubbles: true }));
+      r.dispatchEvent(new Event('change', { bubbles: true }));
+      if (out && out.textContent !== def && !out.dataset.keep) out.textContent = def;
+    });
   });
 })();
 </script>
